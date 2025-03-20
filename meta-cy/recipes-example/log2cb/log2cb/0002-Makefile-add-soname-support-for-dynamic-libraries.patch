@@ -1,0 +1,66 @@
+From 701039271e3f82d421f1f3b4a76f2872ddfb5bf5 Mon Sep 17 00:00:00 2001
+From: Rodolfo Giometti <giometti@enneenne.com>
+Date: Thu, 22 Feb 2024 15:45:39 +0100
+Subject: [PATCH] Makefile: add soname support for dynamic libraries
+
+Signed-off-by: Rodolfo Giometti <giometti@enneenne.com>
+---
+ Makefile | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 3ccc8cd..02d140e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -9,12 +9,12 @@ DYNAMIC = y
+ 
+ all: $(TARGETS)
+ 
+-VERSION := $(shell git describe --tags --abbrev=10 \
+-			--dirty --long --always 2> /dev/null || \
+-				echo "v0.0.0")
++VERSION := $(shell git describe --tags --match 'v*' | cut -c2- | cut -d - -f 1)
++SOVER   := $(shell echo $(VERSION) | cut -d '.' -f 1-2)
++
+ CC := $(CROSS_COMPILE)gcc
+ AR := $(CROSS_COMPILE)ar
+-CFLAGS += -O2 -Wall -D_GNU_SOURCE -D__VERSION=\"$(VERSION)\"
++CFLAGS += -O2 -Wall -D_GNU_SOURCE -D__VERSION=\"v$(VERSION)\"
+ CFLAGS += -MMD    # automatic .d dependency file generation
+ ifneq ($(DYNAMIC),y)
+ CFLAGS += -static
+@@ -23,16 +23,19 @@ endif
+ 
+ ifeq ($(DYNAMIC),y)
+ define lib_rules
+-$1: $(foreach n,$($(1)_LDLIBS),lib$n.so)
+-lib$(1).so: $($(1)_SOURCES)
++$1: $(foreach n,$($(1)_LDLIBS),lib$n.so.$(VERSION))
++lib$(1).so.$(VERSION): $($(1)_SOURCES)
+ 	$(CC) -shared -fPIC $(CFLAGS) $($(1)_CFLAGS) $(CPPFLAGS) $($(1)_CPPFLAGS) \
+-		$($(1)_SOURCES) -o lib$(1).so \
++		-Wl,-soname,lib$(1).so.$(SOVER) \
++		$($(1)_SOURCES) -o lib$(1).so.$(VERSION) \
+ 		$(LDFLAGS) $($(1)_LDFLAGS) $(LDLIBS) $(foreach n,$($(1)_LDLIBS),-l$n)
++	ln -s lib$(1).so.$(VERSION) lib$(1).so
++	ln -s lib$(1).so.$(VERSION) lib$(1).so.$(SOVER)
+ -include $($(1)_SOURCES:%.c=%.d)
+ 
+-lib$(1).so_clean:
+-	rm -rf lib$(1).so $($(1)_SOURCES:.c=.o) $($(1)_SOURCES:.c=.d)
+-clean: lib$(1).so_clean
++lib$(1).so.$(VERSION)_clean:
++	rm -rf lib$(1).so* $($(1)_SOURCES:.c=.o) $($(1)_SOURCES:.c=.d)
++clean: lib$(1).so.$(VERSION)_clean
+ endef
+ else
+ define lib_rules
+@@ -49,7 +52,7 @@ endif
+ 
+ define prog_rules
+ ifeq ($(DYNAMIC),y)
+-$1: $(foreach n,$($(1)_LDLIBS),lib$n.so)
++$1: $(foreach n,$($(1)_LDLIBS),lib$n.so.$(VERSION))
+ else
+ $1: $(foreach n,$($(1)_LDLIBS),lib$n.a)
+ endif

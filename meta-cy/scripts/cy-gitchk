@@ -1,0 +1,20 @@
+#!/bin/bash
+
+CY_MISC_SH_FILE="cy-misc.inc"
+if ! . $(dirname $0)/$CY_MISC_SH_FILE ; then
+        echo "$0: fatal error! Cannot source $CY_MISC_SH_FILE"
+        exit 1
+fi
+
+#
+# Main
+#
+
+sources_dir=$(dirname $CY_METADIR)
+for d in $(ls $sources_dir) ; do
+	[ -d "$sources_dir/$d" ] || continue
+	info "====== $d ======"
+	git -C $sources_dir/$d status -s
+done
+
+exit 0

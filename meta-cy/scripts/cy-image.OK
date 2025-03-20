@@ -1,0 +1,84 @@
+#!/bin/bash
+
+CY_MISC_SH_FILE="cy-misc.inc"
+if ! . $(dirname $0)/$CY_MISC_SH_FILE ; then
+        echo "$0: fatal error! Cannot source $CY_MISC_SH_FILE"
+        exit 1
+fi
+
+function get ( ) {
+	name=$1 ; shift
+        for v in $@ ; do
+                if [[ $v == *"$name="* ]] ; then
+			 d=${v#*=} && eval echo $d
+		fi
+        done
+}
+
+#
+# Usage
+#
+
+function usage ( ) {
+	echo "usage:" >&2
+	echo "       $NAME find-path <pathname> [<pathname> ...]" >&2
+	echo "       $NAME chk-pkg <image> <package> [<package> ...]" >&2
+	exit 1
+}
+
+#
+# Main
+#
+
+[ $# -lt 1 ] && usage
+cmd=$1
+shift 1
+
+set -e
+
+case $cmd in
+find-path)
+	for p in $@ ; do
+		echo -n "pathname $p is provided by: "
+		if p=$(oe-pkgdata-util find-path $p 2>&1) ; then
+			good ${p%%:*}
+		else
+			bad not found
+		fi
+	done
+        exit 0
+        ;;
+
+chk-pkg)
+	name=$1
+	[ -z "$name" ] && usage
+	shift 1
+
+        info "searching in $BUILDDIR..."
+	vars=$(cy-vars 'MACHINE\|IMAGE_LINK_NAME' $name)
+
+	# Compose manifest pathname
+	machine=$(get MACHINE $vars)
+	link_name=$(get IMAGE_LINK_NAME $vars)
+	man_img="tmp/deploy/images/$machine/${link_name}.manifest"
+	[ -f $BUILDDIR/$man_img ] || \
+		fatal "manifest file $man_img doesn't exist!" \
+			"Please generate it and then rerun"
+
+	for p in $@ ; do
+		echo -n "package $p is "
+		if grep -q $p $BUILDDIR/$man_img ; then
+			good present
+		else
+			bad not present
+		fi
+	done
+        exit 0
+        ;;
+
+*)
+        fatal "invalid subcommand \"$cmd\""
+esac
+
+# Can't happen!
+exit 1

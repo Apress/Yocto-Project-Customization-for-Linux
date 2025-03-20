@@ -1,0 +1,77 @@
+#!/bin/bash
+
+CY_MISC_SH_FILE="cy-misc.inc"
+if ! . $(dirname $0)/$CY_MISC_SH_FILE ; then
+        echo "$0: fatal error! Cannot source $CY_MISC_SH_FILE"
+        exit 1
+fi
+
+#
+# Usage
+#
+
+function usage ( ) {
+	echo "usage: $NAME <group>|<var> [<recipe>]" >&2
+	echo "where <group> can be:" >&2
+	echo -e "\tbitbake             - main bitbake\'s variables" >&2
+	echo -e "\tmain                - main Yocto\'s variables" >&2
+	echo -e "\tnames               - package names" >&2
+	echo -e "\tdirs                - package directories" >&2
+	echo -e "\timage               - final image's variables" >&2
+	echo -e "\tvirtual             - virtual packages" >&2
+	exit 1
+}
+
+#
+# Main
+#
+
+[ $# -lt 1 ] && usage
+varid=$1
+recipe=$2
+
+set -e
+
+case $varid in
+bitbake)
+	regex="BBPATH\|BBFILES\|BBLAYERS\|"
+	regex+="BB_ENV_PASSTHROUGH\|BB_ENV_PASSTHROUGH_ADDITIONS\|BB_PRESERVE_ENV\|"
+	regex+="BSPDIR\|"
+	regex+="BB_DEFAULT_TASK\|BB_GENERATE_MIRROR_TARBALLS"
+	;;
+
+main)
+	regex="MACHINE\|DISTRO\|"
+	regex+="TOPDIR\|TMPDIR\|DL_DIR\|SSTATE_DIR\|"
+	regex+="PACKAGE_CLASSES\|EXTRA_IMAGE_FEATURES"
+	;;
+
+names)
+	regex="P\|PN\|BP\|PF\|PR\|PV"
+	;;
+
+dirs)
+	regex="S\|B\|D\|T\|"
+	regex+="base_bindir\|base_libdir\|base_sbindir\|"
+	regex+="bindir\|datadir\|docdir\|includedir\|infodir\|libdir\|"
+	regex+="libexecdir\|localedir\|localstatedir\|mandir\|sbindir\|"
+	regex+="servicedir\|sharedstatedir\|sysconfdir\|"
+	regex+="nonarch_base_libdir\|nonarch_libdir\|target_datadir\|"
+	regex+="systemd_system_unitdir\|systemd_unitdir\|systemd_user_unitdir"
+	;;
+
+image)
+	regex="[A-Z_]*IMAGE_[A-Z_]*"
+	;;
+
+virtual)
+	regex="[A-Z_]*_virtual/[a-z_]*"
+	;;
+
+*)
+	regex="$varid"
+esac
+
+bitbake -e $recipe | grep --color "^\(export \)\?\($regex\)="
+
+exit 0

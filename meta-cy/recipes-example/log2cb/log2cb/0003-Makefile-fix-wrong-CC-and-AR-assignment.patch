@@ -1,0 +1,25 @@
+From 3985d1cba756e2845521b61f32fa348a64e1cd55 Mon Sep 17 00:00:00 2001
+From: Rodolfo Giometti <giometti@enneenne.com>
+Date: Thu, 22 Feb 2024 16:47:51 +0100
+Subject: [PATCH] Makefile: fix wrong CC and AR assignment
+
+Signed-off-by: Rodolfo Giometti <giometti@enneenne.com>
+---
+ Makefile | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 02d140e..05b2bcd 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,8 +12,8 @@ all: $(TARGETS)
+ VERSION := $(shell git describe --tags --match 'v*' | cut -c2- | cut -d - -f 1)
+ SOVER   := $(shell echo $(VERSION) | cut -d '.' -f 1-2)
+ 
+-CC := $(CROSS_COMPILE)gcc
+-AR := $(CROSS_COMPILE)ar
++CC ?= $(CROSS_COMPILE)gcc
++AR ?= $(CROSS_COMPILE)ar
+ CFLAGS += -O2 -Wall -D_GNU_SOURCE -D__VERSION=\"v$(VERSION)\"
+ CFLAGS += -MMD    # automatic .d dependency file generation
+ ifneq ($(DYNAMIC),y)

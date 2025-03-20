@@ -1,0 +1,95 @@
+#!/bin/bash
+
+CY_MISC_SH_FILE="cy-misc.inc"
+if ! . $(dirname $0)/$CY_MISC_SH_FILE ; then
+        echo "$0: fatal error! Cannot source $CY_MISC_SH_FILE"
+        exit 1
+fi
+
+function get ( ) {
+	name=$1 ; shift
+        for v in $@ ; do
+                if [[ $v == *"$name="* ]] ; then
+			 d=${v#*=} && eval echo $d
+		fi
+        done
+}
+
+#
+# Usage
+#
+
+function usage ( ) {
+	echo "usage:" >&2
+	echo "       $NAME find-path <image> <pathname> [<pathname> ...]" >&2
+	echo "       $NAME chk-pkg <image> <package> [<package> ...]" >&2
+	exit 1
+}
+
+#
+# Main
+#
+
+[ $# -lt 2 ] && usage
+cmd=$1
+name=$2
+shift 2
+
+set -e
+
+case $cmd in
+find-path)
+	# Read BitBake variables
+	vars=$(cy-vars 'IMAGE_ROOTFS' $name)
+	img_rootfs=$(get IMAGE_ROOTFS $vars)
+
+	# Find packages
+	[ -d $img_rootfs ] || \
+		fatal "rootfs image directory $img_rootfs doesn't exist!" \
+			"Please generate it with 'bitbake $name' and then rerun"
+        info "searching in $img_rootfs..."
+	for p in $@ ; do
+		# Resolve any symlinks
+		real_path=$(readlink ${img_rootfs}$p || true)
+		[ -z "$real_path" ] && real_path=$p
+
+		echo -n "pathname $p is provided by: "
+		if n=$(oe-pkgdata-util find-path $real_path 2>&1) ; then
+			good ${n%%:*} $([ "$real_path" != "$p" ] && echo " [symlink: $real_path]")
+		else
+			bad not found
+		fi
+	done
+        exit 0
+        ;;
+
+chk-pkg)
+	# Read BitBake variables
+	vars=$(cy-vars 'MACHINE\|IMAGE_LINK_NAME' $name)
+	machine=$(get MACHINE $vars)
+	link_name=$(get IMAGE_LINK_NAME $vars)
+
+	# Compose manifest pathname
+	man_img="tmp/deploy/images/$machine/${link_name}.manifest"
+	[ -f $BUILDDIR/$man_img ] || \
+		fatal "manifest file $man_img doesn't exist!" \
+			"Please generate it with 'bitbake $name' and then rerun"
+        info "searching in $BUILDDIR..."
+
+	for p in $@ ; do
+		echo -n "package $p is "
+		if grep -q $p $BUILDDIR/$man_img ; then
+			good present
+		else
+			bad not present
+		fi
+	done
+        exit 0
+        ;;
+
+*)
+        fatal "invalid subcommand \"$cmd\""
+esac
+
+# Can't happen!
+exit 1

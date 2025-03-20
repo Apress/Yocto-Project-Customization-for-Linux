@@ -1,0 +1,11 @@
+[Unit]
+Description=The skeleton service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+ExecStart=/usr/sbin/skeleton-test
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+From a6441a04879ed697c04c403edb5cf74066a9b0b1 Mon Sep 17 00:00:00 2001
+From: Rodolfo Giometti <giometti@enneenne.com>
+Date: Thu, 22 Feb 2024 15:29:41 +0100
+Subject: [PATCH] Makefile: force dynamic linked files
+
+Signed-off-by: Rodolfo Giometti <giometti@enneenne.com>
+---
+ Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Makefile b/Makefile
+index ab1e327..3ccc8cd 100644
+--- a/Makefile
++++ b/Makefile
+@@ -3,7 +3,7 @@ TARGETS += tools/cbheader
+ TARGETS += tools/external_app
+ 
+ # Set to n to generate statically linked files
+-DYNAMIC ?= y
++DYNAMIC = y
+ 
+ # ----------------------------------------------------------------------------
+ 

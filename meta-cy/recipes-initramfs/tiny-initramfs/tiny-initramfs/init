@@ -1,0 +1,77 @@
+#!/bin/sh
+
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+#
+# Defines
+#
+
+NAME="init"
+ROOT_DIR="/mnt/root"
+ROOT_DEV="/dev/mmcblk1p2"
+
+#
+# Functions
+#
+
+get_cmdline_value() {
+        local value=" $(cat /proc/cmdline) "
+	[ "$value" == "${value##* ${1}}" ] && return 1
+        value="${value##* ${1}=}"
+        value="${value%% *}"
+        [ "${value}" != "" ] && echo "${value}"
+	return 0
+}
+
+# Prints a message and start a endless loop
+fatal() {
+	echo "$NAME: $@" >/dev/console
+	echo "### Machine HALTED!!! ###" >/dev/console
+
+	while true ; do
+		sleep 3600
+	done
+}
+
+move_mountpoint() {
+	for mp in $* ; do
+		mount -o move $mp $ROOT_DIR$mp
+	done
+}
+
+wait_for_blockdev() {
+	retries=5
+	while [ $retries -ge 0 ] ; do
+		[ -b $1 ] && return 0
+		sleep 1
+		retries=$(( $retries - 1 ))
+	done
+	return 1 ;# error!
+}
+
+#
+# Main
+#
+
+echo "$NAME: ***** Initramfs started *****"
+
+# Mount filesystems into /etc/fstab
+mount -a
+
+# Do symlink for /etc/mtab
+ln -s /proc/self/mounts /etc/mtab
+
+init=$(get_cmdline_value init)
+mkdir -p $ROOT_DIR
+wait_for_blockdev $ROOT_DEV || fatal "no block device!"
+mount $ROOT_DEV $ROOT_DIR || fatal "cannot mount real rootfs!"
+
+echo "$NAME: booting real rootfs..."
+move_mountpoint /dev /proc /sys /tmp
+exec switch_root -c /dev/console $ROOT_DIR ${init:-/sbin/init}
+
+# Something goes wrong? Time to die...
+fatal "System hangs!"
+
+# Can't happen
+exit 1
